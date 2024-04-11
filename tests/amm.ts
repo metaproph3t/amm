@@ -1,16 +1,45 @@
+import * as token from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Amm } from "../target/types/amm";
 
-describe("amm", () => {
-  // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
+describe("amm", async () => {
+  const provider = anchor.AnchorProvider.env();
+  const connection = provider.connection;
+  const payer = provider.wallet['payer'];
+  anchor.setProvider(provider);
+  const amm = anchor.workspace.Amm as Program<Amm>;
 
-  const program = anchor.workspace.Amm as Program<Amm>;
+  let token0, token1;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods.initialize().rpc();
-    console.log("Your transaction signature", tx);
+  before(async () => {
+    token0 = await token.createMint(
+      connection,
+      payer,
+      payer.publicKey,
+      payer.publicKey,
+      9
+    );
+
+    token1 = await token.createMint(
+      connection,
+      payer,
+      payer.publicKey,
+      payer.publicKey,
+      9
+    );
+  });
+
+  it("Can initialize pools", async () => {
+    const poolKP = anchor.web3.Keypair.generate();
+
+    await amm.methods.initializePool()
+      .accounts({
+        pool: poolKP.publicKey,
+        token0,
+        token1,
+      })
+      .signers([poolKP])
+      .rpc();
   });
 });
